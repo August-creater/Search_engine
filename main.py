@@ -1,44 +1,31 @@
 import math
-from textblob import TextBlob as tb
-import nltk
-from nltk.corpus import stopwords
-from string import punctuation
-
-# Download necessary NLTK data
-nltk.download('punkt')
-nltk.download('stopwords')
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS as EnglishStopWords
+import re
 
 # Preprocessing Function
-def preprocess_text(document):
-    stop_words = set(stopwords.words('english'))  # Load stopwords
-
+def preprocess_text(doc):
+    stop_words = EnglishStopWords # Load stopwords
     # Tokenizing the document
-    blob = tb(document)
-    tokens = blob.words
-
+    tokens = re.findall(r'\w+', doc.lower())
     # Lowercasing, removing punctuation, and filtering stopwords
     cleaned_tokens = [
-        word.lower() for word in tokens
-        if word.lower() not in stop_words and word not in punctuation
+        word for word in tokens if word.lower() not in stop_words
     ]
-
     # Join cleaned tokens back into a single document
-    return " ".join(cleaned_tokens)
+    return cleaned_tokens
 
 # TF-IDF Calculation Functions
-def term_frequency(word, docs):
-    blob = tb(docs)
-    return blob.words.count(word) / len(blob.words)
+def term_frequency(word, words):
+    return words.count(word) / len(words) if words else 0
 
-def n_containing(word, first_list):
-    return sum(1 for blob in first_list if word in blob.words)
+def n_containing(word, doc_list):
+    return sum(1 for doc in doc_list if word in doc)
 
 def inverse_doc_freq(word, new_list):
-    return math.log(len(new_list) / (1 + n_containing(word, new_list)))
+    return math.log(1 +len(new_list) / (1 + n_containing(word, new_list))) + 1
 
-def tfidf(word, blob, betterlist):
-    return term_frequency(word, blob) * inverse_doc_freq(word, betterlist)
-
+def tfidf(word, words, corpus):
+    return term_frequency(word, words) * inverse_doc_freq(word, corpus)
 # Dataset
 document1 = ("""Python is a 2000 made-for-TV horror movie directed by Richard
 Limbaugh. The film features several cult favorite actors, including William
@@ -61,9 +48,15 @@ better_list = [document1, document2]
 processed_list = [preprocess_text(doc) for doc in better_list]
 
 # Calculate TF-IDF Scores
+# Calculate TF-IDF Scores
 for i, document in enumerate(processed_list):
     print("Most common words in doc {}".format(i + 1))
-    score = {word: tfidf(word, document, processed_list) for word in document.split()}
+    score = {word: tfidf(word, document, processed_list) for word in set(document)}
     sorted_words = sorted(score.items(), key=lambda x: x[1], reverse=True)
+    for word, s in sorted_words[:5]:
+        print("\tWord: {}, TF-IDF: {}".format(word, round(s, 5)))
+
+    print("Least common words in doc {}".format(i + 1))
+    sorted_words = sorted(score.items(), key=lambda x: x[1])
     for word, s in sorted_words[:5]:
         print("\tWord: {}, TF-IDF: {}".format(word, round(s, 5)))
