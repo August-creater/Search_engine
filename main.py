@@ -68,11 +68,10 @@ class TFIDF:
     def analyze_document(document, top_n=5):
         tfidf_analyzer = TFIDF(document)
         for i, document in enumerate(documents):
-            print("Most common words in doc {}".format(i + 1))
             score = tfidf_analyzer.get_document_scores(document, top_n)
             sorted_words = sorted(score.items(), key=lambda x: x[1], reverse=True)
             for word, s in sorted_words[:top_n]:
-                print("\tWord: {}, TF-IDF: {}".format(word, round(s, 5)))
+                print(f"Document {i + 1}: {word} (TF-IDF: {s:.2f})")
 
 
 # Main
