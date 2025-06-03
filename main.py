@@ -31,9 +31,6 @@ def processed_url(url_list):
 
 
 # TF-IDF Calculations
-def term_frequency(word, words):
-    return words.count(word) / len(words) if words else 0
-
 
 class TFIDF:
     def __init__(self, corpus=None):
@@ -43,6 +40,9 @@ class TFIDF:
     def add_documents(self, documents):
         self.corpus.extend(documents)
         self.doc_count = len(self.corpus)
+
+    def term_frequency(self, word, words):
+        return self.doc_count * words.count(word) / len(words) if words else 0
 
     def n_containing(self, word, corpus=None):
         corpus = corpus or self.corpus
@@ -64,19 +64,12 @@ class TFIDF:
         sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         return sorted_scores[:top_n] if top_n else sorted_scores
 
-    @staticmethod # static method
-    def analyze_document(document, top_n=5):
-        tfidf_analyzer = TFIDF(document)
-        for i, document in enumerate(documents):
-            score = tfidf_analyzer.get_document_scores(document, top_n)
-            sorted_words = sorted(score.items(), key=lambda x: x[1], reverse=True)
-            for word, s in sorted_words[:top_n]:
-                print(f"Document {i + 1}: {word} (TF-IDF: {s:.2f})")
+
 
 
 # Main
 if __name__ == "__main__":
-    url = "https://www.delish.com/"
+    url = input("Enter a URL: ")
     try:
         url_list = list(get_links(url))[:2]
         processed_url(url_list)

@@ -13,6 +13,7 @@ def dis_link_valid(url):
         return False
 
 def get_links(url):
+    global response
     if not dis_link_valid(url):
         return
 
@@ -42,7 +43,7 @@ def index(url):
     if not dis_link_valid(url):
         return ""
     try:
-        response = requests.get(url, timeout=(10, 60))
+        response = requests.get(url, timeout=(10, 500))
         response.raise_for_status()
         page = BeautifulSoup(response.text, 'html.parser')
         for script in page.find_all('script'):
@@ -53,7 +54,7 @@ def index(url):
         return ""
 
 # Ensure the URL has a valid scheme
-url = "https://www.delish.com/"
+url =  input("Enter a URL: ")
 for href in get_links(url):
     cleaned_text = index(href)
     print(f"Indexed: {href}")
