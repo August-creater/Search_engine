@@ -1,62 +1,85 @@
-import math
-from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS as EnglishStopWords
-import re
+import math # For TF-IDF Calculation
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS as EnglishStopWords # For Removing Stopwords
+import re # For Tokenization and Preprocessing URLs (removing punctuation, lowercasing, etc.)
+from Web_indexer import index, get_links # using a web indexer that I created to get text/cleaned HTML within the scope of the website crawler
 
-# Preprocessing Function
-def preprocess_text(doc):
-    stop_words = EnglishStopWords # Load stopwords
-    # Tokenizing the document
-    tokens = re.findall(r'\w+', doc.lower())
+# Preprocessing Url that removes punctuation, lowercases, and filters stopwords to highlight keywords off the website
+def preprocess_url(pre_url):
+    try:
+        pre_url = pre_url.encode('utf-8').decode('ascii', 'ignore') # encoding and decoding to remove non-ascii characters
+    except AttributeError:
+       pass
+    # Tokenizing the website
+    tokens = re.findall(r'\b[a-z]{2,}\b', pre_url.lower())
+    filtered_tokens = [token for token in tokens if token not in EnglishStopWords]
     # Lowercasing, removing punctuation, and filtering stopwords
-    cleaned_tokens = [
-        word for word in tokens if word.lower() not in stop_words
-    ]
-    # Join cleaned tokens back into a single document
-    return cleaned_tokens
+    return filtered_tokens
 
-# TF-IDF Calculation Functions
+# Processed URLs
+def processed_url(url_list):
+    documents = []
+    for url in url_list:
+        try:
+         raw_text = index(url)
+         if raw_text: #using index.py to get text/cleaned HTML
+            Tokenize_url = preprocess_url(raw_text)
+            documents.append(Tokenize_url)
+        except Exception as e:
+            print(f"Error processing URL: {url}. Error: {e}")
+        return documents
+    return None
+
+
+# TF-IDF Calculations
 def term_frequency(word, words):
     return words.count(word) / len(words) if words else 0
 
-def n_containing(word, doc_list):
-    return sum(1 for doc in doc_list if word in doc)
 
-def inverse_doc_freq(word, new_list):
-    return math.log(1 +len(new_list) / (1 + n_containing(word, new_list))) + 1
+class TFIDF:
+    def __init__(self, corpus=None):
+        self.corpus = corpus or []
+        self.doc_count = len(self.corpus)
 
-def tfidf(word, words, corpus):
-    return term_frequency(word, words) * inverse_doc_freq(word, corpus)
-# Dataset
-document1 = ("""Python is a 2000 made-for-TV horror movie directed by Richard
-Limbaugh. The film features several cult favorite actors, including William
-Zabka of The Karate Kid fame, Wil Wheaton, Casper Van Dien, Jenny McCarthy,
-Keith Coogan, Robert Englund (best known for his role as Freddy Krueger in the
-A Nightmare on Elm Street series of films), Dana Barron, David Bowe, and Sean
-Whalen. The film concerns a genetically engineered snake, a python, that
-escapes and unleashes itself on a small town. It includes the classic final
-girl scenario evident in films like Friday the 13th. It was filmed in Los Angeles,
- California and Malibu, California. Python was followed by two sequels: Python
- II (2002) and Boa vs. Python (2004), both also made-for-TV films.""")
+    def add_documents(self, documents):
+        self.corpus.extend(documents)
+        self.doc_count = len(self.corpus)
 
-document2 = ("""Python is an interpreted, high-level, general-purpose programming
-language. Its design philosophy emphasizes code readability with its use of
-whitespace indentation. Its language constructs and object-oriented model encourage""")
+    def n_containing(self, word, corpus=None):
+        corpus = corpus or self.corpus
+        return sum(word in doc for doc in corpus)
 
-better_list = [document1, document2]
+    def inverse_doc_freq(self, word, corpus=None):
+        corpus = corpus or self.corpus
+        num_docs = len(corpus)
+        num_containing_word = self.n_containing(word, corpus)
+        return math.log(num_docs / (1 + num_containing_word))
 
-# Preprocess the dataset
-processed_list = [preprocess_text(doc) for doc in better_list]
+    def tfidf(self, word, words, corpus=None):
+        tf = term_frequency(word, words)
+        idf = self.inverse_doc_freq(word, corpus)
+        return tf * idf
 
-# Calculate TF-IDF Scores
-# Calculate TF-IDF Scores
-for i, document in enumerate(processed_list):
-    print("Most common words in doc {}".format(i + 1))
-    score = {word: tfidf(word, document, processed_list) for word in set(document)}
-    sorted_words = sorted(score.items(), key=lambda x: x[1], reverse=True)
-    for word, s in sorted_words[:5]:
-        print("\tWord: {}, TF-IDF: {}".format(word, round(s, 5)))
+    def get_document_scores(self, document, top_n=None):
+        scores = {word: self.tfidf(word, document) for word in set(document)}
+        sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        return sorted_scores[:top_n] if top_n else sorted_scores
 
-    print("Least common words in doc {}".format(i + 1))
-    sorted_words = sorted(score.items(), key=lambda x: x[1])
-    for word, s in sorted_words[:5]:
-        print("\tWord: {}, TF-IDF: {}".format(word, round(s, 5)))
+    @staticmethod # static method
+    def analyze_document(document, top_n=5):
+        tfidf_analyzer = TFIDF(document)
+        for i, document in enumerate(documents):
+            print("Most common words in doc {}".format(i + 1))
+            score = tfidf_analyzer.get_document_scores(document, top_n)
+            sorted_words = sorted(score.items(), key=lambda x: x[1], reverse=True)
+            for word, s in sorted_words[:top_n]:
+                print("\tWord: {}, TF-IDF: {}".format(word, round(s, 5)))
+
+
+# Main
+if __name__ == "__main__":
+    url = "https://www.delish.com/"
+    try:
+        url_list = list(get_links(url))[:2]
+        processed_url(url_list)
+    except Exception  and ImportError as e:
+        print(f"Error indexing URL: {url}. Error: {e}")
